@@ -7,19 +7,86 @@ output:
 
 
 ## Loading and preprocessing the data
-
-
+```{r }
+activity <- read.csv("activity.csv")
+activity_df <- subset(activity, !is.na(steps), select = steps:interval)
+```
 
 ## What is mean total number of steps taken per day?
+``` {r mean_calc}
+total_steps <- aggregate(steps ~ date, activity_df, FUN = "sum")
 
+hist(total_steps$steps, main="Histogram of Total  Steps per Day", xlab = "Steps per day", col = "steelblue", ylim = c(0, 25)) 
 
+mean <- mean(total_steps$steps)
+median <- median(total_steps$steps)
+```
+
+The **mean** steps per day: `r sprintf("%.2f", mean)`  
+The **median** of steps per day: `r median`
 
 ## What is the average daily activity pattern?
+```{r daily_activity_pattern}
+mean_steps <- aggregate(steps ~ interval, activity_df, FUN = "mean")
+plot(mean_steps$interval, mean_steps$steps, type="l", main="Mean Steps per Day by Interval", xlab = "Interval", ylab = "Mean steps", col="darkgreen")
 
+max_interval <- mean_steps[which.max(mean_steps$steps), 1]
 
+```
+The 5-minute interval that contains the maximum of steps, on average across all days: **`r max_interval`**
 
-## Imputing missing values
+## Inputing missing values
 
+1. Number of missing values
+```{r Input_NA}
+num_na <- sum(is.na(activity$steps))
+```
+The number of missing values: **`r num_na`**
 
+2. Strategy for filling in all of the missing values in the dataset: Using interval mean of each missing value
+```{r mean_interval}
+index <- which(is.na(activity$steps))
+
+# Create a vector of means
+mean_vec <- rep(mean_steps[, 2], times=8)
+```
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in
+```{r replace_na}
+activity[index, "steps"] <- mean_vec
+head(activity)
+```
+
+4. Histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day
+```{r new_hist}
+
+ntotal_steps <- aggregate(steps ~ date, activity, FUN = "sum")
+
+hist(ntotal_steps$steps, main="Histogram of Total  Steps per Day", xlab = "Steps per day", col = "steelblue", ylim = c(0, 25)) 
+
+mean <- mean(ntotal_steps$steps)
+median <- median(ntotal_steps$steps)
+
+```
+
+The **mean** steps per day: `r sprintf("%.2f", mean)`  
+The **median** of steps per day: `r sprintf("%.2f", median)`
+
+The effect of adding missing values had no effect to the new average, as the strategy for missing values was to use the original mean to replace the NA values.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r load_libs, results='hide'} 
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+```
+
+``` {r week_day_end}
+activity$date <- ymd(activity$date)
+
+activity <- mutate(activity, day = wday(date, label = TRUE),  daytype = ifelse(day == "Sat" | day == "Sun", "weekend", "weekday"))
+mean_steps <- aggregate(steps ~ interval + daytype, activity, FUN = "mean")
+
+qplot(x = interval, y = steps, data = mean_steps, geom = c("line"), facets = daytype~., ylab = "Average number of Steps", main="Mean Steps by Interval separated by Day type")
+
+```
